@@ -1,0 +1,57 @@
+name: Test
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test_is_same:
+    strategy:
+      matrix:
+        os: [ ubuntu-20.04, ubuntu-18.04, macos-11, macos-10.15, windows-2016, windows-2019, windows-2022 ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - run: echo 0 > ~/test
+        shell: bash
+      - uses: smilerobotics/actions-check-command-output-diff@v1
+        id: compare
+        with:
+          command: 'echo 0'
+          command_output: "~/test"
+          cache_key_prefix: "test-is-same-${{ matrix.os }}"
+      - run: test "${{ steps.compare.outputs.is_same }}" == "true"
+        shell: bash
+  test_is_different:
+    strategy:
+      matrix:
+        os: [ ubuntu-20.04, ubuntu-18.04, macos-11, macos-10.15, windows-2016, windows-2019, windows-2022 ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: smilerobotics/actions-check-command-output-diff@v1
+        id: compare
+        with:
+          command: 'echo $(date)'
+          command_output: "~/test"
+          cache_key_prefix: "test-is-different-${{ matrix.os }}"
+      - run: test "${{ steps.compare.outputs.is_same }}" == "false"
+        shell: bash
+  test_is_different_with_no_file:
+    strategy:
+      matrix:
+        os: [ ubuntu-20.04, ubuntu-18.04, macos-11, macos-10.15, windows-2016, windows-2019, windows-2022 ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Get Date
+        id: get_date
+        run: |
+          echo "::set-output name=date::$(/bin/date -u "+%Y-%m-%d-%H_%M_%S")"
+        shell: bash
+      - uses: smilerobotics/actions-check-command-output-diff@v1
+        id: compare
+        with:
+          command: 'echo $(date)'
+          command_output: "~/test"
+          cache_key_prefix: "test-is-different-with-no-file-${{ matrix.os }}-${{ steps.get_date.outputs.date }}"
+      - run: test "${{ steps.compare.outputs.is_same }}" == "false"
+        shell: bash

@@ -1,0 +1,46 @@
+name: 'check-command-output-diff'
+description: 'Run command and check diff between old output of the command and new one.'
+inputs:
+  command:
+    description: 'Command to run.'
+    required: true
+  command_output:
+    description: 'Path of the command output file.'
+    required: true
+  cache_key_prefix:
+    description: 'Key prefix for cache of the command output file.'
+    required: true
+outputs:
+  is_same:
+    description: "If old and new output is same, true."
+    value: ${{ steps.compare.outputs.is_same }}
+runs:
+  using: "composite"
+  steps:
+    - name: Get Date
+      id: get_date
+      run: |
+        echo "::set-output name=date::$(/bin/date -u "+%Y-%m-%d-%H_%M_%S")"
+      shell: bash
+    - name: Make temp file
+      id: mktemp
+      run: |
+        echo "::set-output name=tempfile::$(mktemp)"
+      shell: bash
+    - name: Cache
+      uses: actions/cache@v2
+      with:
+        path: ${{ inputs.command_output }}
+        key: ${{ inputs.cache_key_prefix }}-${{ steps.get_date.outputs.date }}
+        restore-keys: ${{ inputs.cache_key_prefix }}-
+    - name: Run command
+      shell: bash
+      run: |
+        ${{ inputs.command }} > ${{ steps.mktemp.outputs.tempfile }}
+    - name: Compare
+      id: compare
+      shell: bash
+      run: |
+        diff ${{ inputs.command_output }} ${{ steps.mktemp.outputs.tempfile }} && echo "::set-output name=is_same::true" || echo "::set-output name=is_same::false"
+        mv ${{ steps.mktemp.outputs.tempfile }} ${{ inputs.command_output }}
+        cat ${{ inputs.command_output }}
